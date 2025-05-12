@@ -1,38 +1,61 @@
-EASYLIST_URL = "https://easylist.to/easylist/easylist.txt"
+from selenium.webdriver.common.by import By
 
-BLOCKING_SYMBOLS = ('-', '.', '/', ':', '?', '&', '_', "=")
 
-IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif",
-                    ".webp", ".avif", ".svg", ".ico",
-                    ".apng", ".bmp", ".tiff", ".tif",
-                    ".jfif", ".heif", ".heic")
-
-TYPES = {
-    "jpg": "image", "jpeg": "image", "png": "image", "gif": "image", "webp": "image", "avif": "image", "svg": "image",
-    "ico": "image", "apng": "image", "bmp": "image", "tiff": "image", "tif": "image", "jfif": "image", "heif": "image",
-    "heic": "image", "css": "stylesheet", "js": "script", "html": "document", "xml": "document", "json": "document",
-    "pdf": "document", "doc": "document", "docx": "document", "xls": "document", "xlsx": "document", "ppt": "document",
-    "pptx": "document", "mp4": "media", "mp3": "media", "avi": "media", "mov": "media", "wav": "media", "ogg": "media",
-    "flac": "media", "mkv": "media", "webm": "media", "zip": "document", "rar": "document", "tar": "document", "woff": "font",
-    "woff2": "font", "ttf": "font", "otf": "font", "eot": "font", "svgz": "font", "woff3": "font", "woff4": "font",
-
+ESSENTIAL_DIRS = {
+    "lists": "data\\rules_lists\\lists",
+    "parsed_rules": "data\\rules_lists\\parsed_rules",
+    "websites": "data\\websites",
 }
 
-REQUEST_TYPES = ['stylesheet', 'image', 'script', 'object', 'xmlhttprequest', 'third-party', 'subdocument', 'ping',
-                 'media', 'document', 'popup', 'rewrite']
+COOKIES_BUTTON_SELECTORS = [
+    {"by": By.ID, "value": "acceptAll"},
+    {"by": By.ID, "value": "consent-accept"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'Accept')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'Agree')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'Consent')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'Allow')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'I accept')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'OK')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'Accept all')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'accept all')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'Accept All')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'I agree')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'Continue')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'Yes')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'X')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'Yes, I accept')]"},
+    {"by": By.XPATH, "value": "//button[contains(text(), 'Confirm My Choices')]"},
+    {"by": By.XPATH, "value": "//a[contains(text(), 'Agree and Proceed')]"},
+    {"by": By.XPATH, "value": "//button[contains(@class, 'accept-btn')]"},
+    {"by": By.XPATH, "value": "//a[contains(@class, 'btn_yes') and @href='#' and @role='button']"},
+    {"by": By.XPATH, "value": "//a[contains(@class, 'cookies-button')]"},
+    {"by": By.XPATH, "value": "//button[contains(@id, 'accept') or contains(@id, 'agree')]"},
+    {"by": By.XPATH, "value": "//button[@aria-label='Yes, I accept']"},
+    {"by": By.XPATH, "value": "//button[@aria-label='accept-cookies']"},
+    {"by": By.XPATH, "value": "//button[@aria-label='Accept cookies']"},
+    {"by": By.XPATH, "value": "//button[@aria-label='Accept all cookies']"},
+    {"by": By.XPATH, "value": "//button[@aria-label='I accept cookies']"},
+    {"by": By.XPATH, "value": "//button[@aria-label='I agree to the use of cookies']"},
+    {"by": By.XPATH, "value": "//button[@aria-label='Agree']"},
+    {"by": By.XPATH, "value": "//button[@aria-label='OK']"},
+    {"by": By.XPATH, "value": "//button[@aria-label='Continue']"},
+    {"by": By.XPATH, "value": "//button[@aria-label='Yes']"},
+    {"by": By.XPATH, "value": "//button[@aria-label='Accept']"},
+]
 
-DOWNLOADABLE_FORMATS = {'stylesheet': 'css', 'image': '', 'script': 'js', 'document': 'html'}
-
-FORMAT_CONVERTER = {
-    'stylesheet': ['css'], 'script': ['js'], 'document': ['html'], 'image': ['aces', 'apng', 'avci', 'avcs', 'avif', 'bmp', 'cgm', 'dicom-rle', 'dpx', 'emf', 'example', 'fits', 'g3fax', 'gif', 'heic', 'heic-sequence', 'heif', 'heif-sequence', 'hej2k', 'hsj2', 'ief', 'j2c', 'jaii', 'jais', 'jls', 'jp2', 'jpeg', 'jph', 'jphc', 'jpm', 'jpx', 'jxl', 'jxr', 'jxrA', 'jxrS', 'jxs', 'jxsc', 'jxsi', 'jxss', 'ktx', 'ktx2', 'naplps', 'png', 'prs.btif', 'prs.pti', 'pwg-raster', 'svg+xml', 't38', 'tiff', 'tiff-fx', 'vnd.adobe.photoshop', 'vnd.airzip.accelerator.azv', 'vnd.blockfact.facti', 'vnd.clip', 'vnd.cns.inf2', 'vnd.dece.graphic', 'vnd.djvu', 'vnd.dwg', 'vnd.dxf', 'vnd.dvb.subtitle', 'vnd.fastbidsheet', 'vnd.fpx', 'vnd.fst', 'vnd.fujixerox.edmics-mmr', 'vnd.fujixerox.edmics-rlc', 'vnd.globalgraphics.pgb', 'vnd.microsoft.icon', 'vnd.mix', 'vnd.ms-modi', 'vnd.mozilla.apng', 'vnd.net-fpx', 'vnd.pco.b16', 'vnd.radiance', 'vnd.sealed.png', 'vnd.sealedmedia.softseal.gif', 'vnd.sealedmedia.softseal.jpg', 'vnd.svf', 'vnd.tencent.tap', 'vnd.valve.source.texture', 'vnd.wap.wbmp', 'vnd.xiff', 'vnd.zbrush.pcx', 'webp', 'wmf', 'x-emf', 'x-wmf']
-
+RULES_LISTS = {
+    "EasyList": {
+        "description": "Primary list for blocking ads (banners, pop-ups, video ads)",
+        "url": "https://easylist.to/easylist/easylist.txt"
+    },
+    "EasyPrivacy": {
+        "description": "Blocks tracking scripts and analytics (Google Analytics, Facebook Pixel)",
+        "url": "https://easylist.to/easylist/easyprivacy.txt"
+    },
 }
 
 __all__ = [
-    "EASYLIST_URL",
-    "BLOCKING_SYMBOLS",
-    "IMAGE_EXTENSIONS",
-    "REQUEST_TYPES",
-    "DOWNLOADABLE_FORMATS",
-    "FORMAT_CONVERTER"
+    "COOKIES_BUTTON_SELECTORS",
+    "RULES_LISTS",
+    "ESSENTIAL_DIRS",
 ]

@@ -1,12 +1,13 @@
-import json
+import requests
 
 
-def json_loader(_json_file) -> dict:
-    with open(_json_file, "r") as f:
-        data = json.load(f)
-    return data
+def rule_list_downloader(lists: dict) -> None:
+    for _list, link in lists.items():
+        result = requests.get(link["url"])
+        open(f"data\\rules_lists\\Lists\\{_list}.txt", "w+", encoding="utf-8").write(result.text)
+    return
 
 
 __all__ = [
-    "json_loader"
+    "rule_list_downloader"
 ]
