@@ -104,7 +104,7 @@ class AnalysisResult(Base):
     __tablename__ = 'analysis_results'
     request_id = Column(String(64), ForeignKey('network_requests.request_id'), primary_key=True)
     rule_id = Column(Integer)
-    decision = Column(Enum('blocked', 'allowed', name='decision_enum'), nullable=False)
+    decision = Column(Enum('AD', 'TRACKER', 'SAFE', name='decision_enum'), nullable=False)
 
     request = relationship("NetworkRequest")
 
@@ -165,7 +165,7 @@ class crawler2db:
         try:
             security_state = security_state.lower() if security_state else 'insecure'
             if security_state not in ['secure', 'insecure']:
-                security_state = 'insecure'  # Fallback to insecure
+                security_state = 'insecure'
 
             if not self.session.get(NetworkRequest, request_id):
                 raise ValueError(f"Request {request_id} not found")

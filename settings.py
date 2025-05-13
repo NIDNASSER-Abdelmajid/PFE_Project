@@ -44,18 +44,34 @@ COOKIES_BUTTON_SELECTORS = [
 ]
 
 RULES_LISTS = {
+    "Easyprivacy": {
+        "description": "Blocks tracking scripts and analytics (Google Analytics, Facebook Pixel)",
+        "url": "https://easylist.to/easylist/easyprivacy.txt"
+    },
     "EasyList": {
         "description": "Primary list for blocking ads (banners, pop-ups, video ads)",
         "url": "https://easylist.to/easylist/easylist.txt"
     },
-    "EasyPrivacy": {
-        "description": "Blocks tracking scripts and analytics (Google Analytics, Facebook Pixel)",
-        "url": "https://easylist.to/easylist/easyprivacy.txt"
-    },
+}
+
+BINARY_OPTIONS = [
+            "script", "image", "stylesheet", "object", "xmlhttprequest",
+            "object-subrequest", "subdocument", "document", "elemhide",
+            "other", "background", "xbl", "ping", "dtd", "media",
+            "third-party", "match-case", "collapse", "donottrack", "websocket"
+]
+
+RULES_FORMAT = {
+            'blocking': [],
+            'exceptions': [],
+            'element_hiding': [],
+            'element_hiding_exceptions': []
 }
 
 __all__ = [
     "COOKIES_BUTTON_SELECTORS",
     "RULES_LISTS",
     "ESSENTIAL_DIRS",
+    "BINARY_OPTIONS",
+    "RULES_FORMAT",
 ]
