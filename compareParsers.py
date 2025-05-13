@@ -1,15 +1,15 @@
 import json
-from checker import Checker
+from checker import ADChecker
 from adblockparser import AdblockRule
 
 
 class AdTester:
     def __init__(self, rules_file="data/rules_lists/parsed_rules/EasyList.json"):
-        self.verifier = Checker(json_file=rules_file)
+        self.verifier = ADChecker(json_file=rules_file)
         self.adblock_rules = self._load_rules(rules_file)
 
     @staticmethod
-    def _load_rules(self, rules_file):
+    def _load_rules(rules_file):
         with open(rules_file, "r", encoding="utf-8") as f:
             rules_json = json.load(f)
 
@@ -38,4 +38,4 @@ class AdTester:
             for rule in self.adblock_rules
             if rule.matching_supported(options)
         )
-        return my_parser, other_parser, my_rule_id if my_rule_id else 0
+        return my_parser, other_parser, my_rule_id if my_rule_id else -1

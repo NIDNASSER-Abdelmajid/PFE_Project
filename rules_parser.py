@@ -1,29 +1,23 @@
 import itertools
 import re
 import json
+from settings import BINARY_OPTIONS, RULES_FORMAT
+import copy
 
 
 class ELParser:
-    id_iter = itertools.count()
 
-    def __init__(self, analysis_type: str = None) -> None:
-        self.analysis_type = analysis_type
-        self.rules = {
-            'blocking': [],
-            'exceptions': [],
-            'element_hiding': [],
-            'element_hiding_exceptions': []
-        }
-        self.BINARY_OPTIONS = [
-            "script", "image", "stylesheet", "object", "xmlhttprequest",
-            "object-subrequest", "subdocument", "document", "elemhide",
-            "other", "background", "xbl", "ping", "dtd", "media",
-            "third-party", "match-case", "collapse", "donottrack", "websocket"
-        ]
+    def __init__(self) -> None:
+        self.id_iter = None
+        self.rules = None
+        self.BINARY_OPTIONS = BINARY_OPTIONS
 
     def parse_rules(self, rule_texts: list) -> None:
         """Parse multiple adblock rules and categorize them"""
+        self.id_iter = itertools.count() 
+        self.rules = copy.deepcopy(RULES_FORMAT)
         for rule_text in rule_texts:
+            # print("here")
             rule = self._parse_single_rule(rule_text.strip())
             if rule:
                 self._categorize_rule(rule)

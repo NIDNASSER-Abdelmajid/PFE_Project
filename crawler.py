@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import json
 import logging
 import os
@@ -19,6 +20,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support import expected_conditions as EC
 
+from checker import TrackingChecker
 from compareParsers import AdTester
 from crawlerdb import crawler2db, Website
 from settings import COOKIES_BUTTON_SELECTORS
@@ -31,6 +33,7 @@ class Crawler:
         """Initialize crawler with list of websites to analyze."""
         self.analysis_type = analysis_type
         self.websites = websites_path
+        self.tracker_checker = TrackingChecker(json_file="data/rules_lists/parsed_rules/EasyPrivacy.json")
         self.driver = self._initialize_webdriver()
         self.max_retries = max_retries
         self.db = crawler2db()
@@ -109,7 +112,6 @@ class Crawler:
         driver.get(url)
 
         domain = urlparse(url).netloc
-        # filename = domain.replace("www.", "").replace(".", "_")
         allowed_domains = [f'.{domain}', f'.www.{domain}', f'www.{domain}']
 
         sleep(wait_time)
@@ -139,7 +141,6 @@ class Crawler:
     def get_logs(self, url: str,  website_id: int) -> None:
         """Capture and save network performance logs."""
         domain = urlparse(url).netloc.replace("www.", "").replace(".", "_")
-        sleep(5)
         logs = self.driver.get_log("performance")
         data = []
 
@@ -180,7 +181,6 @@ class Crawler:
         original_window = self.driver.current_window_handle
         popups_found = False
 
-        # Handle JavaScript alerts
         try:
             alert = self.driver.switch_to.alert
             alert.accept()
@@ -188,7 +188,6 @@ class Crawler:
         except NoAlertPresentException:
             pass
 
-        # Handle new windows/tabs
         if len(self.driver.window_handles) > 1:
             for handle in self.driver.window_handles:
                 if handle != original_window:
@@ -198,7 +197,6 @@ class Crawler:
                     popups_found = True
             self.driver.switch_to.window(original_window)
 
-        # Handle modal dialogs
         modal_selectors = [
             'div[class*="modal"]',
             'div[class*="popup"]',
@@ -354,7 +352,7 @@ class Crawler:
         self.driver = self._initialize_webdriver()
         print(f"Processing {url}")
         self.driver.get(url)
-        sleep(5)
+        sleep(60)
 
         domain_safe = urlparse(url).netloc.replace("www.", "").replace(".", "_")
         os.makedirs(f"data/websites_data/{domain_safe}", exist_ok=True)
@@ -365,7 +363,7 @@ class Crawler:
         self.get_logs(url, website_id)
         self.media_downloader(url, website_id)
         self.get_all_cookies(url, 20)
-        self._analyze_assets(domain_safe, url, is_popup)
+        self._analyze_assets_for_ads_and_trackers(domain_safe, url, is_popup)
 
         self._mark_website_completed(website_id)
 
@@ -407,7 +405,8 @@ class Crawler:
             logging.error(f"Invalid URL {url}: {str(e)}")
             return False
 
-    def _analyze_assets(self, domain: str, url: str, is_popup: bool) -> None:
+
+    def _analyze_assets_for_ads_and_trackers(self, domain: str, url: str, is_popup: bool) -> None:
         success_file = f"data/websites_data/{domain}/Successful_urls.txt"
         if not os.path.exists(success_file):
             return
@@ -415,67 +414,121 @@ class Crawler:
         with open(success_file, "r") as f:
             assets = [line.strip().split(':::') for line in f if line.strip()]
 
-        results_path = f"data/websites_data/{domain}/results.txt"
-
-        with open(results_path, "w"):
-            pass
-
+        ads_results_path = f"data/websites_data/{domain}/ads_results.txt"
+        trackers_results_path = f"data/websites_data/{domain}/trackers_results.txt"
         results_lock = Lock()
         db_lock = Lock()
         ad_tester = AdTester()
+        # domain_fn = domain.replace("www.", "").replace(".", "_")
 
+        def save_result(path, result, asset_url):
+            with results_lock:
+                with open(path, "a") as file:
+                    file.write(f"[{result}] {asset_url}\n")
+
+        def save_ad_resource(asset_url, max_retries=3):
+            try:
+                base_dir = f"data/websites_data/{domain}/ADs"
+                os.makedirs(base_dir, exist_ok=True)
+
+                url_path = urlparse(asset_url).path
+                ext = os.path.splitext(url_path)[1] or '.png'
+                file_hash = hashlib.md5(asset_url.encode()).hexdigest()
+                filename = f"AD_{file_hash}{ext}"
+                filepath = os.path.join(base_dir, filename)
+
+                for attempt in range(max_retries + 1):
+                    try:
+                        with requests.get(asset_url, stream=True, timeout=10) as response:
+                            response.raise_for_status()
+                            with open(filepath, "wb") as f:
+                                for chunk in response.iter_content(1024):
+                                    f.write(chunk)
+                        return True
+                    except requests.exceptions.RequestException as e:
+                        if attempt == max_retries:
+                            raise
+                        logging.warning(f"Attempt {attempt + 1} failed for {asset_url}, retrying...")
+                        return None
+                return None
+
+            except Exception as e:
+                logging.warning(f"Failed to save AD resource {asset_url}: {str(e)}")
+                os.makedirs(f"data/websites_data/{domain}", exist_ok=True)
+                with open(f"data/websites_data/{domain}/Failed_ADs.txt", "a") as f:
+                    f.write(f"{asset_url}\n")
+                return False
+
+        def update_db(request_id, rule_id, decision):
+            with db_lock:
+                self.db.add_analysis_result(
+                    request_id=request_id,
+                    rule_id=rule_id,
+                    decision=decision
+                )
+
+        def analyze_tracker(asset_url, asset_type, is_popup, url):
+            is_third_party = self.is_third_party(asset_url, url)
+            test_params = {
+                "type": asset_type.lower(),
+                "popup": is_popup,
+                "third-party": is_third_party
+            }
+            is_tracker = self.tracker_checker.is_tracker(asset_url, test_params)
+            tracker_result = "TRACKER" if is_tracker[0] else "NOT TRACKER"
+            return is_tracker, tracker_result, test_params
+
+        def analyze_ad(asset_url, test_params, ad_tester):
+            is_ad = ad_tester.test_url(asset_url, test_params)
+            ad_result = "AD" if is_ad[0] or is_ad[1] else "NOT AD"
+            return is_ad, ad_result
+
+        def process_asset(asset, pbar):
+            asset_url, asset_type, request_id = asset
+            try:
+                is_tracker, tracker_result, test_params = analyze_tracker(asset_url, asset_type, is_popup, url)
+                save_result(trackers_results_path, tracker_result, asset_url)
+
+                is_ad = (False, False, None)
+                ad_result = "NOT AD"
+                if not is_tracker[0]:
+                    is_ad, ad_result = analyze_ad(asset_url, test_params, ad_tester)
+                    save_result(ads_results_path, ad_result, asset_url)
+                    if ad_result == "AD" and asset_type in ["image", "media"]:
+                        save_ad_resource(asset_url)
+                else:
+                    save_result(ads_results_path, ad_result, asset_url)
+
+                rule_id = is_ad[2] if not is_tracker[0] else is_tracker[1]
+                decision = self._determine_ad_decision(is_ad, is_tracker)
+                update_db(request_id, rule_id, decision)
+
+                if len(asset_url) > 30:
+                    pbar.set_postfix_str(f"Current: {asset_url[:30]}...")
+                else:
+                    pbar.set_postfix_str(f"Current: {asset_url}")
+
+                return True
+            except Exception as e:
+                logging.error(f"Error analyzing {asset_url}: {str(e)}")
+                return False
+            finally:
+                pbar.update(1)
+
+        max_workers = min(32, (os.cpu_count() or 1) * 4)
         with tqdm(total=len(assets),
                   desc=f"Analyzing {domain}",
                   unit="asset",
                   bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]") as pbar:
-
-            def process_asset(asset):
-                asset_url, asset_type, request_id = asset
-                try:
-                    is_third_party = self.is_third_party(asset_url, url)
-                    test_params = {
-                        "type": asset_type.lower(),
-                        "popup": is_popup,
-                        "third-party": is_third_party
-                    }
-
-                    is_ad_2 = ad_tester.test_url(asset_url, test_params)
-
-                    result = "AD" if is_ad_2[0] or is_ad_2[1] else "NOT AD"
-                    result_line = f"[{result}] {asset_url}\n"
-
-                    with db_lock:
-                        self.db.add_analysis_result(
-                            request_id=request_id,
-                            rule_id=is_ad_2[2],
-                            decision=self._determine_ad_decision(is_ad_2)
-                        )
-
-                    with results_lock:
-                        with open(results_path, "a") as results_file:
-                            results_file.write(result_line)
-
-                    if len(asset_url) > 30:
-                        pbar.set_postfix_str(f"Current: {asset_url[:30]}...")
-                    else:
-                        pbar.set_postfix_str(f"Current: {asset_url}")
-
-                    return True
-                except Exception as e:
-                    logging.error(f"Error analyzing {asset_url}: {str(e)}")
-                    return False
-                finally:
-                    pbar.update(1)
-
-            max_workers = min(32, (os.cpu_count() or 1) * 4)  # More aggressive threading
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                list(executor.map(process_asset, assets))
+                list(executor.map(lambda asset: process_asset(asset, pbar), assets))
+
 
     @staticmethod
-    def _determine_ad_decision(ad_test_result: tuple) -> str:
+    def _determine_ad_decision(is_ad: tuple, is_tracker) -> str:
         """Determine the final ad decision based on test results."""
-        if ad_test_result[0] and ad_test_result[1]:
-            return "blocked"
-        elif ad_test_result[0] or ad_test_result[1]:
-            return "blocked"
-        return "allowed"
+        if is_tracker[0]:
+            return "TRACKER"
+        elif is_ad[0] or is_ad[1]:
+            return "AD"
+        return "SAFE"

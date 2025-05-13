@@ -1,8 +1,7 @@
 import os
-# from typing import Dict, List
 from settings import ESSENTIAL_DIRS, RULES_LISTS
 from support import rule_list_downloader
-from checker import ELParser
+from rules_parser import ELParser
 from crawler import Crawler
 
 
@@ -33,7 +32,8 @@ class WebAnalyzer:
         for rules_list in RULES_LISTS.keys():
             rules_path = os.path.join("data", "rules_lists", "Lists", f"{rules_list}.txt")
             with open(rules_path, "r", encoding="utf-8") as f:
-                self.parser.parse_rules(f.readlines())
+                rules = f.readlines()
+                self.parser.parse_rules(rules)
                 output_path = os.path.join(ESSENTIAL_DIRS["parsed_rules"], f"{rules_list}.json")
                 self.parser.save_to_json(output_path)
         print(f"Processed {len(RULES_LISTS)} rules lists")
