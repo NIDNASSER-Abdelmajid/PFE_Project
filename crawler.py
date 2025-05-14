@@ -352,10 +352,11 @@ class Crawler:
         self.driver = self._initialize_webdriver()
         print(f"Processing {url}")
         self.driver.get(url)
-        sleep(60)
+        sleep(5)
 
         domain_safe = urlparse(url).netloc.replace("www.", "").replace(".", "_")
         os.makedirs(f"data/websites_data/{domain_safe}", exist_ok=True)
+        self.driver.save_screenshot(f"data/websites_data/{domain_safe}/screenshot.png")
 
         is_popup = self.handle_popups()
         self.accept_cookies()
